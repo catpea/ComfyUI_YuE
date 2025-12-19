@@ -35,6 +35,12 @@ if not os.path.exists(YUE_weigths_path):
     os.makedirs(YUE_weigths_path)
 folder_paths.add_model_folder_path("yue", YUE_weigths_path)
 
+# add yue_llm dir for Stage A/B LLM models
+YUE_LLM_PATH = os.path.join(folder_paths.models_dir, "yue_llm")
+if not os.path.exists(YUE_LLM_PATH):
+    os.makedirs(YUE_LLM_PATH)
+folder_paths.add_model_folder_path("yue_llm", YUE_LLM_PATH)
+
 
 class YUE_Stage_A_Loader:
     def __init__(self):
@@ -43,9 +49,17 @@ class YUE_Stage_A_Loader:
     @classmethod
     def INPUT_TYPES(s):
         ckpt_list_xcodec = [i for i in folder_paths.get_filename_list("yue") if "36" in i]
+        llm_list = folder_paths.get_filename_list("yue_llm")
+        # Add HuggingFace repo options as fallbacks
+        hf_repos = [
+            "hf:m-a-p/YuE-s1-7B-anneal-en-cot",
+            "hf:m-a-p/YuE-s1-7B-anneal-en-icl",
+            "hf:m-a-p/YuE-s1-7B-anneal-zh-cot",
+        ]
+        stage_a_options = llm_list + hf_repos if llm_list else hf_repos
         return {
             "required": {
-                "stage_A_repo": ("STRING",{"default": "m-a-p/YuE-s1-7B-anneal-en-cot"},),
+                "stage_A_model": (stage_a_options,),
                 "xcodec_ckpt": (["none"] + ckpt_list_xcodec,),
                 "quantization_model":(["fp16","int8","int4","exllamav2"],),
                 "use_mmgp":("BOOLEAN",{"default":True}),
@@ -60,10 +74,20 @@ class YUE_Stage_A_Loader:
     FUNCTION = "loader_main"
     CATEGORY = "YUE"
 
-    def loader_main(self, stage_A_repo, xcodec_ckpt,quantization_model,use_mmgp,stage1_cache_size,exllamav2_cache_mode,mmgp_profile):
+    def loader_main(self, stage_A_model, xcodec_ckpt,quantization_model,use_mmgp,stage1_cache_size,exllamav2_cache_mode,mmgp_profile):
         basic_model_config=os.path.join(current_node_path, "inference/xcodec_mini_infer/final_ckpt/config.yaml")
         model_config = OmegaConf.load(basic_model_config)
         resume_path=folder_paths.get_full_path("yue", xcodec_ckpt)
+
+        # Determine model path: local file or HuggingFace repo
+        if stage_A_model.startswith("hf:"):
+            # HuggingFace repo mode
+            stage_A_repo = stage_A_model[3:]  # Remove "hf:" prefix
+            print(f"Loading Stage A model from HuggingFace: {stage_A_repo}")
+        else:
+            # Local model mode
+            stage_A_repo = folder_paths.get_full_path("yue_llm", stage_A_model)
+            print(f"Loading Stage A model from local path: {stage_A_repo}")
 
         if quantization_model=="exllamav2":
             from .inference.infer_stage1 import Stage1Pipeline_EXL2,Stage1Pipeline_HF
@@ -394,10 +418,16 @@ class YUE_Stage_B_Loader:
 
     @classmethod
     def INPUT_TYPES(s):
+        llm_list = folder_paths.get_filename_list("yue_llm")
+        # Add HuggingFace repo options as fallbacks
+        hf_repos = [
+            "hf:m-a-p/YuE-s2-1B-general",
+        ]
+        stage_b_options = llm_list + hf_repos if llm_list else hf_repos
         return {
             "required": {
                 "info": ("quantization_model",),
-                "stage_B_repo": ("STRING",{"default": "m-a-p/YuE-s2-1B-general"},),
+                "stage_B_model": (stage_b_options,),
                 "stage2_cache_size": ("INT",{"default": 8192, "min": 4096, "max": MAX_SEED, "step": 64, "display": "number"}),
                 "stage2_batch_size": ("INT",{"default": 2, "min": 1, "max": 64, "step": 1, "display": "number"}),
                 "exllamav2_cache_mode": (["FP16","Q8","Q6", "Q4"],),
@@ -410,11 +440,21 @@ class YUE_Stage_B_Loader:
     FUNCTION = "loader_main"
     CATEGORY = "YUE"
 
-    def loader_main(self,info,stage_B_repo,stage2_cache_size,stage2_batch_size,exllamav2_cache_mode,use_mmgp):
+    def loader_main(self,info,stage_B_model,stage2_cache_size,stage2_batch_size,exllamav2_cache_mode,use_mmgp):
 
         quantization_model=info.get("quantization_model")
         mmgp_profile=info.get("mmgp_profile")
-       
+
+        # Determine model path: local file or HuggingFace repo
+        if stage_B_model.startswith("hf:"):
+            # HuggingFace repo mode
+            stage_B_repo = stage_B_model[3:]  # Remove "hf:" prefix
+            print(f"Loading Stage B model from HuggingFace: {stage_B_repo}")
+        else:
+            # Local model mode
+            stage_B_repo = folder_paths.get_full_path("yue_llm", stage_B_model)
+            print(f"Loading Stage B model from local path: {stage_B_repo}")
+
         if not use_mmgp:
             if quantization_model=="exllamav2":
                 from .inference.infer_stage2 import Stage2Pipeline_EXL2 ,Stage2Pipeline_HF
