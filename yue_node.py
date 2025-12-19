@@ -41,6 +41,17 @@ if not os.path.exists(YUE_LLM_PATH):
     os.makedirs(YUE_LLM_PATH)
 folder_paths.add_model_folder_path("yue_llm", YUE_LLM_PATH)
 
+# Helper function to get only model directories (not individual files)
+def get_yue_llm_models():
+    """Get list of model directories from yue_llm folder"""
+    models = []
+    if os.path.exists(YUE_LLM_PATH):
+        for item in os.listdir(YUE_LLM_PATH):
+            item_path = os.path.join(YUE_LLM_PATH, item)
+            if os.path.isdir(item_path):
+                models.append(item)
+    return sorted(models)
+
 
 class YUE_Stage_A_Loader:
     def __init__(self):
@@ -49,7 +60,7 @@ class YUE_Stage_A_Loader:
     @classmethod
     def INPUT_TYPES(s):
         ckpt_list_xcodec = [i for i in folder_paths.get_filename_list("yue") if "36" in i]
-        llm_list = folder_paths.get_filename_list("yue_llm")
+        llm_list = get_yue_llm_models()
         # Add HuggingFace repo options as fallbacks
         hf_repos = [
             "hf:m-a-p/YuE-s1-7B-anneal-en-cot",
@@ -418,7 +429,7 @@ class YUE_Stage_B_Loader:
 
     @classmethod
     def INPUT_TYPES(s):
-        llm_list = folder_paths.get_filename_list("yue_llm")
+        llm_list = get_yue_llm_models()
         # Add HuggingFace repo options as fallbacks
         hf_repos = [
             "hf:m-a-p/YuE-s2-1B-general",
