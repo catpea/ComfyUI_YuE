@@ -96,8 +96,8 @@ class YUE_Stage_A_Loader:
             stage_A_repo = stage_A_model[3:]  # Remove "hf:" prefix
             print(f"Loading Stage A model from HuggingFace: {stage_A_repo}")
         else:
-            # Local model mode
-            stage_A_repo = folder_paths.get_full_path("yue_llm", stage_A_model)
+            # Local model mode - construct path directly since models are directories
+            stage_A_repo = os.path.join(YUE_LLM_PATH, stage_A_model)
             print(f"Loading Stage A model from local path: {stage_A_repo}")
 
         if quantization_model=="exllamav2":
@@ -462,8 +462,8 @@ class YUE_Stage_B_Loader:
             stage_B_repo = stage_B_model[3:]  # Remove "hf:" prefix
             print(f"Loading Stage B model from HuggingFace: {stage_B_repo}")
         else:
-            # Local model mode
-            stage_B_repo = folder_paths.get_full_path("yue_llm", stage_B_model)
+            # Local model mode - construct path directly since models are directories
+            stage_B_repo = os.path.join(YUE_LLM_PATH, stage_B_model)
             print(f"Loading Stage B model from local path: {stage_B_repo}")
 
         if not use_mmgp:
